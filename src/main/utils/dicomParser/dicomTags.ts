@@ -1,0 +1,48 @@
+export const DICOM_TAGS = {
+  // Patient Information
+  PATIENT_NAME: 'x00100010',
+  PATIENT_ID: 'x00100020',
+  PATIENT_BIRTH_DATE: 'x00100030',
+  PATIENT_SEX: 'x00100040',
+
+  // Image Information
+  ROWS: 'x00280010',
+  COLUMNS: 'x00280011',
+  PIXEL_SPACING: 'x00280030',
+  SLICE_THICKNESS: 'x00180050',
+  SLICE_LOCATION: 'x00201041',
+
+  // Series Information
+  SERIES_DESCRIPTION: 'x0008103e',
+  SERIES_NUMBER: 'x00200011',
+
+  // Image Pixel Data
+  PIXEL_DATA: 'x7fe00010',
+
+  // Window Settings
+  WINDOW_CENTER: 'x00281050',
+  WINDOW_WIDTH: 'x00281051',
+
+  // Additional Tags
+  INSTANCE_NUMBER: 'x00200013',
+  IMAGE_POSITION: 'x00200032'
+} as const
+
+export const DICOM_TAG_DESCRIPTIONS = {
+  [DICOM_TAGS.PATIENT_NAME]: '환자 이름',
+  [DICOM_TAGS.PATIENT_ID]: '환자 ID',
+  [DICOM_TAGS.PATIENT_BIRTH_DATE]: '생년월일',
+  [DICOM_TAGS.PATIENT_SEX]: '성별',
+  [DICOM_TAGS.ROWS]: '행 수',
+  [DICOM_TAGS.COLUMNS]: '열 수',
+  [DICOM_TAGS.PIXEL_SPACING]: '픽셀 간격',
+  [DICOM_TAGS.SLICE_THICKNESS]: '슬라이스 두께',
+  [DICOM_TAGS.SLICE_LOCATION]: '슬라이스 위치',
+  [DICOM_TAGS.SERIES_DESCRIPTION]: '시리즈 설명',
+  [DICOM_TAGS.SERIES_NUMBER]: '시리즈 번호',
+  [DICOM_TAGS.WINDOW_CENTER]: '윈도우 중심값',
+  [DICOM_TAGS.WINDOW_WIDTH]: '윈도우 폭',
+  [DICOM_TAGS.INSTANCE_NUMBER]: '인스턴스 번호',
+  [DICOM_TAGS.IMAGE_POSITION]: '이미지 위치'
+} as const
+

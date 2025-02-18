@@ -1,0 +1,16 @@
+# 빌드 출력
+dist
+dist-electron
+
+# 의존성
+node_modules
+
+# 로그
+*.log
+
+# 환경 설정
+.env
+.env.*
+
+# 기타
+.DS_Store

@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "composite": true,
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "strict": true,
+    "types": ["node"],
+    "outDir": "dist-electron/main"
+  },
+  "include": ["src/main/**/*"]
+} 
