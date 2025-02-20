@@ -4,6 +4,7 @@
   import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
   import { STLReader } from '../services/STLReader'
   import { PLYReader } from '../services/PLYReader'
+  import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js'
 
   // 상수 정의
   const CONSTANTS = {
@@ -72,6 +73,62 @@
     return group
   }
 
+  // 극좌표 기반 포인트 샘플링 함수 추가
+  function polarSampling(points: THREE.Vector3[], angleStep: number = 5): THREE.Vector3[] {
+    const sampledPoints: THREE.Vector3[] = []
+
+    // 각도 범위를 0-360도로 나누기
+    for (let phi = 0; phi < 360; phi += angleStep) {
+      const phiRad = (phi * Math.PI) / 180
+      const phiRange = (angleStep * Math.PI) / 180
+
+      // 현재 각도 범위에 있는 포인트들 찾기
+      const pointsInRange = points.filter((point) => {
+        const pointPhi = Math.atan2(point.z, point.x)
+        const normalizedPhi = pointPhi < 0 ? pointPhi + 2 * Math.PI : pointPhi
+        const angleDiff = Math.abs(normalizedPhi - phiRad)
+        return angleDiff <= phiRange || Math.abs(angleDiff - 2 * Math.PI) <= phiRange
+      })
+
+      // 각도 범위 내에서 원점으로부터 가장 먼 포인트 찾기
+      if (pointsInRange.length > 0) {
+        const farthestPoint = pointsInRange.reduce((max, point) => {
+          const distanceMax = Math.sqrt(max.x * max.x + max.z * max.z)
+          const distancePoint = Math.sqrt(point.x * point.x + point.z * point.z)
+          return distancePoint > distanceMax ? point : max
+        })
+        sampledPoints.push(farthestPoint.clone())
+      }
+    }
+
+    return sampledPoints
+  }
+
+  // Convex Hull 생성을 위한 함수 수정
+  function createConvexHullMesh(
+    points: THREE.Vector3[],
+    color: number,
+    opacity: number
+  ): THREE.Group {
+    const group = new THREE.Group()
+    const convexGeometry = new ConvexGeometry(points)
+
+    // 외부 표면 메쉬
+    const surfaceMaterial = new THREE.MeshPhongMaterial({
+      color: color,
+      opacity: opacity,
+      transparent: true,
+      side: THREE.FrontSide, // 전면만 렌더링
+      flatShading: true
+    })
+
+    const surfaceMesh = new THREE.Mesh(convexGeometry, surfaceMaterial)
+    group.add(surfaceMesh)
+
+    return group
+  }
+
+  // visualizeGeometry 함수 수정
   function visualizeGeometry(
     geometry: THREE.BufferGeometry | THREE.Vector3[],
     fileType: 'stl' | 'ply'
@@ -82,7 +139,7 @@
         specular: 0x111111,
         shininess: 200,
         transparent: true,
-        opacity: 0.4
+        opacity: 1
       })
       const mesh = new THREE.Mesh(geometry as THREE.BufferGeometry, material)
 
@@ -97,69 +154,30 @@
       }
 
       const points = geometry as THREE.Vector3[]
-      const processedPoints = interpolateAndResamplePoints(points)
       const pointsGroup = new THREE.Group()
 
-      // 원본 포인트 (빨간색)
-      const redGroup = createProcessedPointGroup(processedPoints, 1, 0, 0xff0000)
+      // 극좌표 기반 샘플링된 포인트
+      // const sampledPoints = polarSampling(points, 0.5)
+      const visible = false
+
+      // 빨간색 그룹 (아래) - 가시성 false로 설정
+      const redGroup = createProcessedPointGroup(points, 1, 0, 0xff0000)
+      redGroup.visible = visible
       pointsGroup.add(redGroup)
 
-      // 5점 이동평균 (연두색)
-      const greenGroup = createProcessedPointGroup(processedPoints, 5, 5, 0x90ee90)
-      pointsGroup.add(greenGroup)
-
-      // 10점 이동평균 (파란색)
-      const blueGroup = createProcessedPointGroup(processedPoints, 10, 10, 0x0000ff)
+      // 파란색 그룹 (위) - 가시성 false로 설정
+      const blueGroup = createProcessedPointGroup(points, 1, 15, 0x0000ff)
+      blueGroup.visible = visible
       pointsGroup.add(blueGroup)
 
-      // 15점 이동평균 (주황색)
-      const orangeGroup = createProcessedPointGroup(processedPoints, 15, 15, 0xffa500)
-      pointsGroup.add(orangeGroup)
+      // 두 그룹의 모든 포인트를 합쳐서 Convex Hull 생성
+      const allPoints: THREE.Vector3[] = []
+      redGroup.children.forEach((child) => allPoints.push(child.position.clone()))
+      blueGroup.children.forEach((child) => allPoints.push(child.position.clone()))
 
-      // 20점 이동평균 (노란색)
-      const yellowGroup = createProcessedPointGroup(processedPoints, 20, 30, 0xffff00)
-      yellowGroup.children.forEach((sphere) => {
-        sphere.position.y = 30
-      })
-      pointsGroup.add(yellowGroup)
-
-      // 포인트 그룹들 간의 연결선 생성
-      const connectGroups = (group1: THREE.Group, group2: THREE.Group) => {
-        const points1 = group1.children
-        const points2 = group2.children
-
-        for (let i = 0; i < Math.min(points1.length, points2.length); i++) {
-          const point1 = points1[i].position
-          const point2 = points2[i].position
-
-          const geometry = new THREE.BufferGeometry()
-          const vertices = new Float32Array([
-            point1.x,
-            point1.y,
-            point1.z,
-            point2.x,
-            point2.y,
-            point2.z
-          ])
-
-          geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
-          const material = new THREE.LineBasicMaterial({
-            color: 0x808080,
-            opacity: 0.5,
-            transparent: true
-          })
-          const line = new THREE.Line(geometry, material)
-          pointsGroup.add(line)
-        }
-      }
-      // 빨간색-연두색 연결
-      connectGroups(redGroup, greenGroup)
-      // 연두색-파란색 연결
-      connectGroups(greenGroup, blueGroup)
-      // 파란색-주황색 연결
-      connectGroups(blueGroup, orangeGroup)
-      // 주황색-노란색 연결
-      connectGroups(orangeGroup, yellowGroup)
+      // Convex Hull 메쉬 생성 및 추가
+      const convexHullMesh = createConvexHullMesh(allPoints, 0xf0685f, 0.5)
+      pointsGroup.add(convexHullMesh)
 
       meshes['ply'] = pointsGroup
       currentScene?.add(pointsGroup)
