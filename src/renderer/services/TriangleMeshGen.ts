@@ -33,7 +33,7 @@ export class MeshGenerator {
     outerSplinePoints: THREE.Vector3[]
   ): THREE.Vector3[] {
     const innerPoints: THREE.Vector3[] = []
-    const POINTS_PER_LINE = 30 // 각 선분당 생성할 포인트 수
+    const POINTS_PER_LINE = 60 // 각 선분당 생성할 포인트 수
 
     // 각 내부 스플라인 포인트에 대해
     for (const innerPoint of innerSplinePoints) {

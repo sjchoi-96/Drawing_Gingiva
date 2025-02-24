@@ -133,7 +133,7 @@
 
     // 모든 점들을 합쳐서 Convex Hull 메쉬 생성
     const allPointsForConvexHull = [...upperPoints, ...lowerPoints]
-    const convexMesh = createConvexHullMesh(allPointsForConvexHull, 0xf0685f, 0) // 투명도를 0.3으로 증가
+    const convexMesh = createConvexHullMesh(allPointsForConvexHull, 0xff9999, 1) // 투명도를 0.3으로 증가
     group.add(convexMesh)
     return group
   }
@@ -329,7 +329,7 @@
       specular: 0x111111,
       shininess: 200,
       transparent: true,
-      opacity: 0.7
+      opacity: 1
     })
     const mesh = new THREE.Mesh(geometry, material)
     group.add(mesh)
@@ -369,8 +369,8 @@
       if (triangleMesh) {
         const elevatedPoints = projectPointsToElevatedMesh(points, triangleMesh)
         const projectedPoints = restoreOriginalHeight(elevatedPoints, points)
-        group.add(visualizePointCloud(projectedPoints, 0xff0000))
-        group.add(visualizePointCloud(elevatedPoints, 0x0000ff))
+        // group.add(visualizePointCloud(projectedPoints, 0xff0000))
+        // group.add(visualizePointCloud(elevatedPoints, 0x0000ff))
 
         const closestPoints = elevatedPoints.map((point) =>
           findClosestOffsetPoint(point, calculatedPoints.offsetPointsLowerOuter)
@@ -383,9 +383,9 @@
           meshVertices.push(new THREE.Vector3(vertices.getX(i), vertices.getY(i), vertices.getZ(i)))
         }
 
-        group.add(visualizePointCloud(closestPoints, 0x00ff00))
+        // group.add(visualizePointCloud(closestPoints, 0x00ff00))
         const D = 2
-        const alpha = 0.5
+        const alpha = 3
         if (currentScene) {
           calculateGingivalProfile(
             D,
@@ -604,10 +604,10 @@
     innerPoints: THREE.Vector3[]
   ): THREE.Mesh {
     const allPointsForMesh = [...lowerPoints, ...innerPoints]
-    const triangleMesh = MeshGenerator.createTriangleMesh(allPointsForMesh, 0xf0685f, 1)
+    const triangleMesh = MeshGenerator.createTriangleMesh(allPointsForMesh, 0xff9999, 1)
 
     // 버텍스 시각화 (흰색)
-    currentScene?.add(visualizePointCloud(allPointsForMesh, 0xffffff, 0.05))
+    // currentScene?.add(visualizePointCloud(allPointsForMesh, 0xffffff, 0.05))
 
     return triangleMesh
   }

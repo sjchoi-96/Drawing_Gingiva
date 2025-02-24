@@ -1,59 +1,46 @@
-// 입력 : D(숫자), 잇몸포인트 포인트 클라우드 y값(배열)(ply의 빨간색 포인트), 잇몸포인트 포인트 클라우드의  xz평면상의 좌표(배열)(ply의 초록색색 포인트), 외부 스플라인 곡선의 xz평면상의 좌표(배열)
-// 출력 : 잇몸포인트 포인트 클라우드의 xz평면상의 배열을 함수 프로파일에 적용하여 y값을 변환하고 변환된 y값을 이용해서 잇몸포인트 클라우드의 좌표를 갱신하여 출력(배열)
-
-// 함수 프로파일 : -1*절댓값(잇몸포인트 포인트 클라우드 y값)* (R^(2*alpha)-D^2)^2
-// 함수 프로파일의 변수 : R, alpha, D
-// 조건 D, alpha 는 양수
-
-// R= D* 절댓값( P벡터 + t*((b벡터-p벡터)/절댓값(b벡터-p벡터)) )
-// P벡터 : 잇몸포인트 포인트 클라우드의   xz평면상의 좌표(배열)
-// b벡터 : 외부 스플라인 곡선의 xz평면상의 좌표(배열)
-
-// t = (V벡터-P벡터)/D
-
-// V벡터 : 평면상의 버텍스 (노란색 포인트트)
-
 import * as THREE from 'three'
 import { Vector3 } from 'three'
+import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js'
 
 // 두 점 사이의 선분 상에서 점들을 찾는 함수
 function findPointsOnLine(
-  startPoint: Vector3,
-  endPoint: Vector3,
-  vertexPoints: THREE.Vector3[],
-  scene: THREE.Scene
+  startPoint: Vector3, // 시작점 (잇몸 포인트)
+  endPoint: Vector3, // 끝점 (스플라인 포인트)
+  vertexPoints: THREE.Vector3[], // 검사할 버텍스 포인트들의 배열
+  scene: THREE.Scene, // Three.js 씬 객체
+  D: number // 최대 거리 제한
 ): Vector3[] {
-  const projectedPoints: Vector3[] = []
-  const RADIUS = 0.5 // 검색 반경
-  const ANGLE_THRESHOLD = 0.1 // 방향 벡터 일치 허용 오차
+  // 결과를 저장할 배열들 초기화
+  const projectedPoints: Vector3[] = [] // 투영된 포인트들을 저장
+  const allPoints: Vector3[] = [] // 모든 선택된 포인트들을 저장
+  const RADIUS = 0.5 // 포인트 검색 반경
+  const ANGLE_THRESHOLD = 0.1 // 허용 각도 임계값
 
-  // 시작점 추가 및 시각화
-  const sphereGeometry = new THREE.SphereGeometry(0.2, 32, 32)
-  const orangeSphereMaterial = new THREE.MeshBasicMaterial({ color: 0xffa500 })
-  const startSphere = new THREE.Mesh(sphereGeometry, orangeSphereMaterial)
-  startSphere.position.copy(startPoint)
-  scene.add(startSphere)
-  projectedPoints.push(startPoint.clone())
-
-  // 선분의 방향 벡터
+  // 시작점에서 끝점으로 향하는 방향 벡터 계산
   const lineDirection = new Vector3().subVectors(endPoint, startPoint).normalize()
 
-  // 현재 검색 시작점
+  // 시작점으로 초기화하고 배열에 추가
   let currentPoint = startPoint.clone()
+  allPoints.push(currentPoint.clone())
   projectedPoints.push(currentPoint.clone())
 
-  while (currentPoint.distanceTo(endPoint) > RADIUS) {
+  // 현재 점이 시작점으로부터 D 거리 이내인 동안 반복
+  while (currentPoint.distanceTo(startPoint) <= D) {
     let bestNextPoint: Vector3 | null = null
     let minAngleDiff = Infinity
 
-    // 현재 점 주변의 모든 점들을 검사
+    // 모든 버텍스 포인트에 대해 검사
     for (const vertex of vertexPoints) {
-      const dist = currentPoint.distanceTo(vertex)
+      const dist = currentPoint.distanceTo(vertex) // 현재 점과 버텍스 사이의 거리
+      const distFromStart = vertex.distanceTo(startPoint) // 시작점에서 버텍스까지의 거리
 
-      if (dist > 0 && dist <= RADIUS) {
+      // 거리 조건 확인: RADIUS 이내이고 D 거리 제한 내에 있는지
+      if (dist > 0 && dist <= RADIUS && distFromStart <= D) {
+        // 현재 점에서 버텍스로 향하는 방향 벡터와 기준 방향 벡터 사이의 각도 계산
         const directionToVertex = new Vector3().subVectors(vertex, currentPoint).normalize()
         const angleDiff = directionToVertex.angleTo(lineDirection)
 
+        // 각도가 임계값보다 작고 지금까지 찾은 최소 각도보다 작으면 업데이트
         if (angleDiff < ANGLE_THRESHOLD && angleDiff < minAngleDiff) {
           minAngleDiff = angleDiff
           bestNextPoint = vertex
@@ -61,40 +48,136 @@ function findPointsOnLine(
       }
     }
 
+    // 적합한 다음 포인트를 찾지 못했으면 종료
     if (!bestNextPoint) break
 
+    // 다음 포인트로 이동하고 배열에 추가
     currentPoint = bestNextPoint
-    projectedPoints.push(currentPoint.clone())
+    allPoints.push(currentPoint.clone())
 
-    // 시각화
-    const sphereGeometry = new THREE.SphereGeometry(0.2, 32, 32)
-    const orangeSphereMaterial = new THREE.MeshBasicMaterial({ color: 0xffa500 })
-    const orangeSphere = new THREE.Mesh(sphereGeometry, orangeSphereMaterial)
-    orangeSphere.position.copy(currentPoint)
-    scene.add(orangeSphere)
+    if (currentPoint.distanceTo(startPoint) <= D) {
+      projectedPoints.push(currentPoint.clone())
+    }
   }
 
-  if (currentPoint.distanceTo(endPoint) <= RADIUS) {
-    projectedPoints.push(endPoint.clone())
-  }
+  // // 찾은 포인트들을 오렌지색 구체로 시각화
+  // allPoints.forEach((point) => {
+  //   const sphereGeometry = new THREE.SphereGeometry(0.2, 32, 32)
+  //   const orangeSphereMaterial = new THREE.MeshBasicMaterial({ color: 0xffa500 })
+  //   const orangeSphere = new THREE.Mesh(sphereGeometry, orangeSphereMaterial)
+  //   orangeSphere.position.copy(point)
+  //   scene.add(orangeSphere)
+  // })
 
-  // 끝점 추가 및 시각화
-  const endSphere = new THREE.Mesh(sphereGeometry, orangeSphereMaterial)
-  endSphere.position.copy(endPoint)
-  scene.add(endSphere)
-  projectedPoints.push(endPoint.clone())
-
-  return projectedPoints
+  // D 거리 이내의 포인트들만 필터링하여 반환
+  return allPoints.filter((point) => point.distanceTo(startPoint) <= D)
 }
 
 function extractVertexPointsOnLine(
   gingivalPoint: Vector3,
   splinePoint: Vector3,
   vertexPoints: THREE.Vector3[],
+  scene: THREE.Scene,
+  D: number
+): Vector3[] {
+  const points = findPointsOnLine(gingivalPoint, splinePoint, vertexPoints, scene, D)
+  return points
+}
+
+// 변형된 점을 시각화하는 함수 추가
+function visualizePoint(position: Vector3, scene: THREE.Scene): void {
+  const sphereGeometry = new THREE.SphereGeometry(0.05, 32, 32)
+  const purpleMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff })
+  const purpleSphere = new THREE.Mesh(sphereGeometry, purpleMaterial)
+  purpleSphere.position.copy(position)
+  scene.add(purpleSphere)
+}
+
+// 변형된 Y 좌표를 계산하는 함수
+function calculateDeformedY(
+  point: Vector3,
+  gingivalPoint: Vector3,
+  directionVector: Vector3,
+  D: number,
+  height: number,
+  alpha: number,
+  offset: number
+): number {
+  const t = point.distanceTo(gingivalPoint) / D
+  const scaledDirection = directionVector.clone().multiplyScalar(t)
+  const R = scaledDirection.length()
+  const R2alpha = Math.pow(R, 2 * alpha)
+  const D2 = 1
+  const R2alphaMinusD2 = R2alpha - D2
+  return height * Math.pow(R2alphaMinusD2, 2) + offset
+}
+
+function deformAndVisualizePoints(
+  gingivalPoint: Vector3,
+  splinePoint: Vector3,
+  gingivalPointY: number,
+  pointsTobeDeformed: Vector3[],
+  D: number,
+  alpha: number,
+  offset: number,
   scene: THREE.Scene
 ): Vector3[] {
-  const points = findPointsOnLine(gingivalPoint, splinePoint, vertexPoints, scene)
-  return points
+  const b = splinePoint.clone()
+  const p = gingivalPoint.clone()
+  const height = -1 * Math.abs(offset - 1 * gingivalPointY)
+  const directionVector = new Vector3().subVectors(b, p).normalize()
+
+  // 변형된 포인트들을 저장할 배열
+  const deformedPoints: Vector3[] = []
+
+  pointsTobeDeformed.forEach((point) => {
+    const deformedPoint = point.clone()
+    deformedPoint.y = calculateDeformedY(
+      point,
+      gingivalPoint,
+      directionVector,
+      D,
+      height,
+      alpha,
+      offset
+    )
+    deformedPoints.push(deformedPoint)
+    // visualizePoint(deformedPoint, scene)
+  })
+
+  return deformedPoints
+}
+
+function interpolatePoints(points: Vector3[], subdivisions: number): Vector3[] {
+  if (points.length < 2) return points
+
+  const interpolatedPoints: Vector3[] = []
+
+  // 포인트들을 x 좌표 기준으로 정렬
+  const sortedPoints = [...points].sort((a, b) => a.x - b.x)
+
+  for (let i = 0; i < sortedPoints.length - 1; i++) {
+    const start = sortedPoints[i]
+    const end = sortedPoints[i + 1]
+
+    interpolatedPoints.push(start.clone())
+
+    // 두 점 사이에 보간된 점들 추가
+    for (let j = 1; j < subdivisions; j++) {
+      const t = j / subdivisions
+      const interpolated = new Vector3(
+        start.x + (end.x - start.x) * t,
+        start.y + (end.y - start.y) * t,
+        start.z + (end.z - start.z) * t
+      )
+      interpolatedPoints.push(interpolated)
+    }
+  }
+
+  // 마지막 점 추가
+  interpolatedPoints.push(sortedPoints[sortedPoints.length - 1].clone())
+
+  return interpolatedPoints
 }
 
 export function calculateGingivalProfile(
@@ -106,31 +189,46 @@ export function calculateGingivalProfile(
   alpha: number,
   scene: THREE.Scene
 ): void {
-  // gingivalPoints 배열을 순회
+  const offset = 20
+  const allDeformedPoints: Vector3[] = []
+
+  // 각 gingival point에 대한 변형된 포인트들 수집
   for (let i = 0; i < gingivalPoints.length; i++) {
     const pointsTobeDeformed = extractVertexPointsOnLine(
       gingivalPoints[i],
       splinePoints[i],
       vertexPoints,
+      scene,
+      D
+    )
+
+    const deformedPoints = deformAndVisualizePoints(
+      gingivalPoints[i],
+      splinePoints[i],
+      gingivalPointsY[i].y,
+      pointsTobeDeformed,
+      D,
+      alpha,
+      offset,
       scene
     )
 
-    // 변형 함수 프로파일
-  }
-}
-
-// 가장 가까운 스플라인 포인트를 찾는 헬퍼 함수
-function findNearestSplinePoint(P: Vector3, splinePoints: Vector3[]): Vector3 {
-  let minDist = Infinity
-  let nearestPoint = splinePoints[0]
-
-  for (const splinePoint of splinePoints) {
-    const dist = P.distanceTo(splinePoint)
-    if (dist < minDist) {
-      minDist = dist
-      nearestPoint = splinePoint
-    }
+    allDeformedPoints.push(...deformedPoints)
   }
 
-  return nearestPoint
+  // 보간된 포인트 생성 (subdivisions 값으로 보간 밀도 조절)
+  const interpolatedPoints = interpolatePoints(allDeformedPoints, 5)
+
+  // Convex Hull 메쉬 생성
+  if (interpolatedPoints.length >= 4) {
+    const convexGeometry = new ConvexGeometry(interpolatedPoints)
+    const material = new THREE.MeshPhongMaterial({
+      color: 0xff9999,
+      transparent: true,
+      opacity: 1,
+      side: THREE.DoubleSide
+    })
+    const convexMesh = new THREE.Mesh(convexGeometry, material)
+    scene.add(convexMesh)
+  }
 }
